@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI
+name: mipsel-none-elf.x86_64-pc-linux-gnu
 
 # Controls when the workflow will run
 on:
@@ -10,11 +10,11 @@ on:
 env:
   CHOST: x86_64-pc-linux-gnu
   TARGET: mipsel-none-elf
-  SYSROOT: /usr/lib/${{env.TARGET}}
+  SYSROOT: /usr/lib/mipsel-none-elf
   BINUTILS_VER: 2.45.1
   GCC_VER: 15.2.0
-  BINUTILS_TAR: ${{env.TARGET}}-binutils.${{env.CHOST}}.tar
-  GCC_TAR: ${{env.TARGET}}-binutils.${{env.CHOST}}.tar
+  BINUTILS_TAR: mipsel-none-elf-binutils.x86_64-pc-linux-gnu.tar
+  GCC_TAR: mipsel-none-elf-binutils.x86_64-pc-linux-gnu.tar
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
