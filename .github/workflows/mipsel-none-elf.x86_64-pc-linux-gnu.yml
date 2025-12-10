@@ -28,7 +28,7 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      - name: binutils
+      - name: build
         run: |
           sudo apt install -y build-essential &
           wget https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VER}.tar.xz -O binutils.tar.xz
