@@ -1,0 +1,114 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  CHOST: x86_64-pc-linux-gnu
+  TARGET: mipsel-none-elf
+  SYSROOT: /usr/lib/${{env.TARGET}}
+  BINUTILS_VER: 2.45.1
+  GCC_VER: 15.2.0
+  BINUTILS_TAR: ${{env.TARGET}}-binutils.${{env.CHOST}}.tar
+  GCC_TAR: ${{env.TARGET}}-binutils.${{env.CHOST}}.tar
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-22.04
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      - name: binutils
+        run: |
+          sudo apt install -y build-essential &
+          wget https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VER}.tar.xz -O binutils.tar.xz
+          tar -xf binutils.tar.xz
+          mv binutils-${BINUTILS_VER} binutils
+          wait
+          wget https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VER}/gcc-${GCC_VER}.tar.xz -O gcc.tar.xz &
+
+          cd binutils
+          mkdir binutils-build && cd binutils-build
+          ../configure \
+            --prefix=${SYSROOT} --infodir=/usr/share/info/${TARGET} --bindir=/usr/bin \
+            --target="${TARGET}" --build="${CHOST}" --host="${CHOST}" \
+            --disable-werror \
+            --disable-nls \
+            --with-gcc --with-gnu-as --with-gnu-ld \
+            --enable-gold \
+            --without-included-gettext \
+            --disable-win32-registry
+          make -j$(nproc)
+          mkdir pkgdir
+          make DESTDIR="$(pwd)/pkgdir/" install
+          cd pkgdir
+          rm -rf ${CHOST}
+          tar -cf ../../../${BINUTILS_TAR} *
+          cd ../../..
+          xz ${BINUTILS_TAR}
+
+          wait
+          tar -xf gcc.tar.xz
+          mv gcc-${GCC_VER} gcc
+          cd gcc
+          mkdir gcc-build && cd gcc-build
+          wait
+          ../configure \
+            --prefix=/usr --libexecdir=/usr/lib \
+            --target="${TARGET}" \
+            --with-newlib \
+            --enable-fixed-point \
+            --with-gnu-as --with-gnu-ld --with-as="/usr/bin/${TARGET}-as"\
+            --disable-nls \
+            --disable-gcov \
+            --disable-decimal-float \
+            --disable-threads \
+            --disable-libatomic \
+            --disable-libgomp \
+            --disable-libquadmath \
+            --disable-libssp \
+            --disable-libvtv \
+            --disable-hosted-libstdcxx \
+            --enable-languages=c,c++ \
+            --disable-multilib --disable-libgcj \
+            --enable-lto --disable-werror \
+            --without-headers --disable-shared \
+            --enable-initfini-array
+          make -j$(nproc)
+          mkdir pkgdir
+          make DESTDIR="$(pwd)/pkgdir/" install
+          cd pkgdir
+          find "usr/lib/gcc/${TARGET}/" \
+            -type f -and \( -name \*.a -or -name \*.o \) \
+            -exec "${TARGET}"-strip '{}'
+          find "usr/lib/gcc/${TARGET}/" \
+            -type f -and \( -name \*.a \) \
+            -exec "${TARGET}"-ranlib '{}'
+          find "usr/bin/" "usr/lib/gcc/${TARGET}/" \
+            -type f -and \( -executable \) -exec strip '{}'
+          rm -rf usr/share usr/lib/libcc1.* ${CHOST} # remove unnecessary files
+          tar -cf ../../../${GCC_TAR} *
+          cd ../../..
+          xz ${GCC_TAR}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ${{env.BINUTILS_TAR}}.xz
+          if-no-files-found: error
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ${{env.GCC_TAR}}.xz
+          if-no-files-found: error
+          compression-level: 0
